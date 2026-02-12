@@ -1,0 +1,26 @@
+{
+  "name": "al-ai-ide",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AL.AI IDE — a serverless, browser-based AI web IDE. Build projects locally, edit with Monaco, chat with the best free coding LLMs, and push straight to GitHub.",
+  "author": "alouatiq <alouatiq@outlook.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/alouatiq/AL.AI-IDE",
+  "scripts": {
+    "dev": "vercel dev",
+    "serve": "serve .",
+    "start": "serve ."
+  },
+  "keywords": [
+    "ai",
+    "ide",
+    "web-ide",
+    "monaco",
+    "serverless",
+    "llm",
+    "coding-assistant",
+    "openrouter",
+    "groq",
+    "github"
+  ]
+}
