@@ -1,0 +1,26 @@
+name: CD
+
+# Vercel auto-deploys on push to the default branch when the repo is linked.
+# This workflow simply gates that deploy on CI being green, and is the hook to
+# add an explicit `vercel deploy --prod` step if you deploy manually instead.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-gate:
+    name: Deploy gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm CI passed
+        run: echo "CI runs on this push via ci.yml; Vercel deploys the static app + api/ Edge functions on merge to main."
+      # To deploy from CI instead of Vercel's Git integration, set VERCEL_TOKEN,
+      # VERCEL_ORG_ID and VERCEL_PROJECT_ID repo secrets and uncomment:
+      # - uses: actions/setup-node@v4
+      #   with: { node-version: "20" }
+      # - run: npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes

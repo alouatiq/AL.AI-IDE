@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-frontend:
+    name: Lint & static checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Syntax-check all JavaScript
+        run: |
+          set -e
+          for f in $(find assets/js api -name '*.js'); do
+            node --check "$f" && echo "ok  $f"
+          done
+      - name: Validate JSON files
+        run: |
+          set -e
+          for f in $(find . -name '*.json' -not -path './node_modules/*'); do
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" && echo "ok  $f"
+          done
+
+  test-quality:
+    name: Quality gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Every directory has a README
+        run: |
+          set -e
+          missing=0
+          while IFS= read -r dir; do
+            case "$dir" in */.git*|*/node_modules*) continue;; esac
+            if [ -z "$(ls -A "$dir"/README.md 2>/dev/null)" ]; then
+              echo "::error::Missing README.md in $dir"; missing=1
+            fi
+          done < <(find . -type d -not -path '*/.git*' -not -path '*/node_modules*')
+          exit $missing
+      - name: Entry points present
+        run: |
+          test -f index.html && test -f assets/css/app.css && test -f assets/js/app.js
+          echo "core files present"
+
+  security-scan:
+    name: Security scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

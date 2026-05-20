@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # Keep GitHub Actions pinned versions fresh
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # Dev tooling declared in the root package.json (no runtime deps are bundled;
+  # Monaco & JSZip load from CDN and are updated by editing index.html).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      npm-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
