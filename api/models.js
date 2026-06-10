@@ -17,6 +17,7 @@ function codingRank(id) {
 export default async function handler() {
   const providers = {
     openrouter: !!process.env.OPENROUTER_API_KEY,
+    agentrouter: !!process.env.AGENTROUTER_API_KEY,
     groq: !!process.env.GROQ_API_KEY,
     google: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
     cerebras: !!process.env.CEREBRAS_API_KEY,

@@ -6,6 +6,7 @@
   "use strict";
 
   const PROVIDERS = {
+    agentrouter: { label: "AgentRouter", baseUrl: "https://agentrouter.org/v1", keyUrl: "https://agentrouter.org/console/token", hint: "sk-…", corsDirect: false },
     openrouter: { label: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", keyUrl: "https://openrouter.ai/keys", hint: "sk-or-v1-…", corsDirect: true },
     groq:       { label: "Groq", baseUrl: "https://api.groq.com/openai/v1", keyUrl: "https://console.groq.com/keys", hint: "gsk_…", corsDirect: true },
     google:     { label: "Google Gemini", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", keyUrl: "https://aistudio.google.com/app/apikey", hint: "AIza…", corsDirect: true },
@@ -15,6 +16,10 @@
   // Curated best free CODING models (recommended first). OpenRouter's live free
   // list is merged in on top of these and self-heals if names go stale.
   const CODING_MODELS = [
+    { provider: "agentrouter", model: "claude-sonnet-4-5-20250929", label: "★ Claude Sonnet 4.5 · AgentRouter" },
+    { provider: "agentrouter", model: "qwen3-coder-480b", label: "★ Qwen3 Coder 480B · AgentRouter" },
+    { provider: "agentrouter", model: "deepseek-r1", label: "DeepSeek R1 · AgentRouter" },
+    { provider: "agentrouter", model: "gpt-4o", label: "GPT-4o · AgentRouter" },
     { provider: "openrouter", model: "qwen/qwen-2.5-coder-32b-instruct:free", label: "★ Qwen2.5 Coder 32B · OpenRouter" },
     { provider: "openrouter", model: "deepseek/deepseek-chat-v3-0324:free", label: "★ DeepSeek V3 · OpenRouter" },
     { provider: "openrouter", model: "deepseek/deepseek-r1:free", label: "DeepSeek R1 (reasoning) · OpenRouter" },
