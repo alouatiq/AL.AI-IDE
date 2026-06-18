@@ -31,6 +31,22 @@
     { provider: "cerebras", model: "llama-3.3-70b", label: "Llama 3.3 70B · Cerebras (fast)" },
   ];
 
+  // On-device models — run FULLY in the browser via WebGPU (WebLLM). No key, no
+  // network at inference time. Each downloads once (cached in the browser) then
+  // reruns offline. q4f32 variants work on GPUs that lack the shader-f16 feature.
+  const ON_DEVICE = [
+    { model: "Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC", label: "Qwen2.5 Coder 1.5B", size: "~1.2 GB", note: "coding · fast" },
+    { model: "Llama-3.2-1B-Instruct-q4f16_1-MLC", label: "Llama 3.2 1B", size: "~0.9 GB", note: "tiny · phone-OK" },
+    { model: "Llama-3.2-1B-Instruct-q4f32_1-MLC", label: "Llama 3.2 1B (f32-safe)", size: "~1.2 GB", note: "works on more GPUs" },
+    { model: "Qwen2.5-3B-Instruct-q4f16_1-MLC", label: "Qwen2.5 3B", size: "~2.0 GB", note: "balanced" },
+    { model: "Llama-3.2-3B-Instruct-q4f16_1-MLC", label: "Llama 3.2 3B", size: "~2.2 GB", note: "balanced" },
+    { model: "gemma-2-2b-it-q4f16_1-MLC", label: "Gemma 2 2B", size: "~1.6 GB", note: "fast" },
+    { model: "Phi-3.5-mini-instruct-q4f16_1-MLC", label: "Phi-3.5 mini", size: "~2.2 GB", note: "reasoning" },
+    { model: "Qwen2.5-Coder-7B-Instruct-q4f16_1-MLC", label: "Qwen2.5 Coder 7B", size: "~4.7 GB", note: "coding · strong" },
+  ];
+  const ON_DEVICE_LABEL = {};
+  ON_DEVICE.forEach((m) => { ON_DEVICE_LABEL[m.model] = m.label; });
+
   const SYSTEM_PROMPT =
     "You are a senior pair-programming assistant embedded in AL.AI IDE, a browser-based code editor. " +
     "Be concise and practical. When you provide code that belongs in a file, put it in a fenced code block and " +
@@ -63,7 +79,48 @@
     ai.buildModelList();
   };
 
-  const providerUsable = (pid) => !!(ai.cfg.keys[pid] || (ai.useProxy && ai.serverKeys[pid]));
+  const providerUsable = (pid) => pid === "ondevice"
+    ? webgpuOK()
+    : !!(ai.cfg.keys[pid] || (ai.useProxy && ai.serverKeys[pid]));
+
+  /* ---------- on-device engine (WebLLM / WebGPU) ---------- */
+  const od = { webllm: null, engine: null, model: null, installed: new Set(IDE.store.get("ide_od_installed", [])) };
+  function webgpuOK() { return typeof navigator !== "undefined" && !!navigator.gpu; }
+  async function loadWebLLM() { if (!od.webllm) od.webllm = await import("https://esm.run/@mlc-ai/web-llm"); return od.webllm; }
+  ai.odIsInstalled = (model) => od.installed.has(model);
+  ai.odWebgpuOK = webgpuOK;
+  ai.ON_DEVICE = ON_DEVICE;
+
+  async function ensureOnDevice(model, onStatus) {
+    if (!webgpuOK()) throw new Error("This browser has no WebGPU — on-device models need a Chromium browser (Chrome/Edge) with hardware acceleration on.");
+    const w = await loadWebLLM();
+    if (!od.engine || od.model !== model) {
+      onStatus("⬇ Loading “" + (ON_DEVICE_LABEL[model] || model) + "” — first run downloads it once, then it's cached…");
+      od.engine = await w.CreateMLCEngine(model, { initProgressCallback: (p) => onStatus("⬇ " + (p.text || "loading…")) });
+      od.model = model;
+      od.installed.add(model); IDE.store.set("ide_od_installed", Array.from(od.installed));
+    }
+    return od.engine;
+  }
+
+  async function runOnDevice(model, messages, onChunk, signal, onStatus) {
+    const engine = await ensureOnDevice(model, onStatus);
+    onStatus("🖥 Generating on your device…");
+    const stream = await engine.chat.completions.create({ messages, stream: true, temperature: 0.7 });
+    let got = false;
+    for await (const chunk of stream) {
+      if (signal.aborted) { try { await engine.interruptGenerate(); } catch (e) {} break; }
+      const delta = chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content;
+      if (delta) { got = true; onChunk(delta); }
+    }
+    if (!got && !signal.aborted) throw new Error("on-device model returned nothing");
+    onStatus("");
+  }
+
+  ai.odRemove = async function (model) {
+    try { const w = await loadWebLLM(); if (od.model === model) { od.engine = null; od.model = null; } await w.deleteModelInCache(model); } catch (e) {}
+    od.installed.delete(model); IDE.store.set("ide_od_installed", Array.from(od.installed));
+  };
 
   ai.buildModelList = function () {
     const sel = IDE.$("#modelSelect");
@@ -82,15 +139,26 @@
       .slice(0, 40).forEach((id) => add("openrouter", id));
 
     sel.innerHTML = "";
-    opts.forEach((o) => {
-      const label = (o.usable ? "" : "🔒 ") + o.label;
-      sel.appendChild(IDE.el("option", { value: o.val, text: label }));
-    });
-    if (opts.some((o) => o.val === ai.cfg.selected)) sel.value = ai.cfg.selected;
-    else if (opts.length) { ai.cfg.selected = opts[0].val; sel.value = opts[0].val; }
+    // On-device group first — no key needed (only shown where WebGPU exists)
+    if (webgpuOK()) {
+      const g = IDE.el("optgroup", { label: "🖥 On-device · local, no key" });
+      ON_DEVICE.forEach((m) => {
+        const tag = od.installed.has(m.model) ? "✓ " : "⬇ ";
+        g.appendChild(IDE.el("option", { value: "ondevice::" + m.model, text: tag + m.label + " (" + m.size + ")" }));
+      });
+      sel.appendChild(g);
+    }
+    // Cloud group
+    const gc = IDE.el("optgroup", { label: "☁ Cloud · needs a key" });
+    opts.forEach((o) => { gc.appendChild(IDE.el("option", { value: o.val, text: (o.usable ? "" : "🔒 ") + o.label })); });
+    sel.appendChild(gc);
+
+    const all = (webgpuOK() ? ON_DEVICE.map((m) => "ondevice::" + m.model) : []).concat(opts.map((o) => o.val));
+    if (all.includes(ai.cfg.selected)) sel.value = ai.cfg.selected;
+    else if (all.length) { ai.cfg.selected = all[0]; sel.value = all[0]; }
   };
 
-  ai.hasAnyEngine = () => Object.keys(PROVIDERS).some(providerUsable);
+  ai.hasAnyEngine = () => (webgpuOK() ? true : false) || Object.keys(PROVIDERS).some(providerUsable);
 
   /* ---------- build the fallback chain ---------- */
   function selectedPair() {
@@ -162,7 +230,9 @@
   ai.send = async function (text) {
     text = (text || "").trim();
     if (!text || ai.busy) return;
-    if (!ai.hasAnyEngine()) { openNoEngine(); return; }
+    const selPre = selectedPair();
+    if (selPre.provider === "ondevice") { if (!webgpuOK()) { openNoEngine(true); return; } }
+    else if (!chain().length) { openNoEngine(); return; }
 
     ai.messages.push({ role: "user", content: text });
     render(); persist();
@@ -175,29 +245,43 @@
     render();
     const setStatus = (s) => { IDE.$("#chatStatus").textContent = s || ""; };
 
-    const apiMsgs = [{ role: "system", content: SYSTEM_PROMPT }];
-    const ctx = contextMessage(); if (ctx) apiMsgs.push(ctx);
+    let sys = SYSTEM_PROMPT;
+    const ctx = contextMessage(); if (ctx) sys += "\n\n" + ctx.content;
+    const apiMsgs = [{ role: "system", content: sys }];
     ai.messages.slice(0, -1).forEach((m) => apiMsgs.push({ role: m.role, content: m.content }));
 
-    const links = chain();
+    const sel = selectedPair();
     let ok = false, lastErr = null;
-    for (let i = 0; i < links.length; i++) {
-      const { provider, model } = links[i];
-      aiMsg.model = model + " · " + PROVIDERS[provider].label;
-      if (i > 0) setStatus("↻ falling back to " + aiMsg.model + " …");
+
+    if (sel.provider === "ondevice") {
+      // Local model — no cloud fallback; keep the user on their chosen engine.
+      aiMsg.model = (ON_DEVICE_LABEL[sel.model] || sel.model) + " · On-device";
       try {
         aiMsg.content = "";
-        await streamProvider(provider, model, apiMsgs, (d) => { aiMsg.content += d; renderStreaming(aiMsg); }, ai.abort.signal);
-        ok = true; setStatus(""); break;
-      } catch (e) {
-        lastErr = e;
-        if (e.name === "AbortError") { setStatus("Stopped."); ok = true; break; }
+        await runOnDevice(sel.model, apiMsgs, (d) => { aiMsg.content += d; renderStreaming(aiMsg); }, ai.abort.signal, setStatus);
+        ok = true; ai.buildModelList();
+      } catch (e) { lastErr = e; if (e.name === "AbortError") { setStatus("Stopped."); ok = true; } }
+      if (!ok) { aiMsg.content = "⚠️ **On-device model failed.** " + (lastErr ? "`" + IDE.esc(lastErr.message) + "`" : "") + "\n\n" + odHelp(lastErr); setStatus(""); }
+    } else {
+      const links = chain();
+      for (let i = 0; i < links.length; i++) {
+        const { provider, model } = links[i];
+        aiMsg.model = model + " · " + PROVIDERS[provider].label;
+        if (i > 0) setStatus("↻ falling back to " + aiMsg.model + " …");
+        try {
+          aiMsg.content = "";
+          await streamProvider(provider, model, apiMsgs, (d) => { aiMsg.content += d; renderStreaming(aiMsg); }, ai.abort.signal);
+          ok = true; setStatus(""); break;
+        } catch (e) {
+          lastErr = e;
+          if (e.name === "AbortError") { setStatus("Stopped."); ok = true; break; }
+        }
       }
-    }
-    if (!ok) {
-      aiMsg.content = "⚠️ **All providers failed.** " + (lastErr ? "`" + IDE.esc(lastErr.message) + "`" : "") +
-        "\n\nTry another model, add your own free key in **⚙ Settings**, or check your connection.";
-      setStatus("");
+      if (!ok) {
+        aiMsg.content = "⚠️ **All providers failed.** " + (lastErr ? "`" + IDE.esc(lastErr.message) + "`" : "") +
+          "\n\nTry another model, add your own free key in **⚙ Settings**, or check your connection.";
+        setStatus("");
+      }
     }
     ai.busy = false; IDE.$("#chatSend").disabled = false; ai.abort = null;
     render(); persist();
@@ -288,14 +372,60 @@
       ]);
       body.appendChild(row);
     });
-    IDE.modal({ title: "⚙ AI Providers", body, footer: [IDE.btn("Done", "primary", () => IDE.$(".overlay:last-child .x").click())] });
+
+    // On-device (local) models section
+    body.appendChild(IDE.el("div", { class: "section-title", text: "🖥 On-device models (local, no key)", style: "margin-top:18px" }));
+    if (!webgpuOK()) {
+      body.appendChild(IDE.el("p", { class: "sub", html:
+        "This browser has <b>no WebGPU</b>, so local models can't run here. Use <b>Chrome</b> or <b>Edge</b> (desktop) with hardware acceleration enabled, then reopen this." }));
+    } else {
+      body.appendChild(IDE.el("p", { class: "sub", html:
+        "Download a model to run it <b>fully in your browser</b> — no key, no data leaves your device, works offline. Each downloads once (multiple GB) and is cached. Pick it from the model dropdown afterwards." }));
+      ON_DEVICE.forEach((m) => body.appendChild(odRow(m)));
+    }
+
+    IDE.modal({ title: "⚙ AI Settings", wide: true, body, footer: [IDE.btn("Done", "primary", () => IDE.$(".overlay:last-child .x").click())] });
   };
 
-  function openNoEngine() {
+  function odRow(m) {
+    const installed = od.installed.has(m.model);
+    const status = IDE.el("span", { class: "log-line", style: "flex:1", text: installed ? "✓ installed" : m.note });
+    const btn = IDE.btn(installed ? "Use" : "Install", installed ? "" : "primary");
+    const rm = IDE.el("button", { class: "btn danger", text: "🗑", title: "Remove download", style: installed ? "" : "display:none" });
+    btn.addEventListener("click", async () => {
+      if (od.installed.has(m.model)) { ai.cfg.selected = "ondevice::" + m.model; IDE.store.set("ide_ai_model", ai.cfg.selected); ai.buildModelList(); IDE.$("#modelSelect").value = ai.cfg.selected; IDE.toast("Selected " + m.label + " — send a message to use it", "ok"); return; }
+      btn.disabled = true;
+      try {
+        await ensureOnDevice(m.model, (s) => { status.textContent = s; });
+        status.textContent = "✓ installed"; btn.textContent = "Use"; btn.classList.remove("primary"); rm.style.display = ""; btn.disabled = false;
+        ai.buildModelList(); IDE.toast(m.label + " ready", "ok");
+      } catch (e) { status.textContent = "✗ " + e.message; btn.disabled = false; IDE.toast(e.message, "err"); }
+    });
+    rm.addEventListener("click", async () => { await ai.odRemove(m.model); status.textContent = m.note; btn.textContent = "Install"; btn.classList.add("primary"); rm.style.display = "none"; ai.buildModelList(); IDE.toast("Removed " + m.label, "ok"); });
+    return IDE.el("div", { class: "prov-row" }, [
+      IDE.el("span", { class: "p-name", text: m.label }),
+      IDE.el("span", { class: "p-badge", text: m.size }),
+      status, btn, rm,
+    ]);
+  }
+
+  function odHelp(err) {
+    const msg = String((err && err.message) || "");
+    if (/shader-f16|f16|createComputePipeline|compute stage/i.test(msg)) {
+      return "Your GPU likely lacks the **shader-f16** feature. In **⚙ Settings → On-device**, install a **q4f32** model (e.g. *Llama 3.2 1B (f32-safe)*) — f32 runs on far more GPUs.";
+    }
+    return "Make sure you're on **Chrome/Edge desktop** with hardware acceleration on, or switch to a **cloud** model (add a key in ⚙ Settings).";
+  }
+
+  function openNoEngine(needWebgpu) {
+    const gpu = webgpuOK();
     const body = IDE.el("div", { html:
-      "<p class='sub'>No AI engine is configured yet. Do one of:</p>" +
-      "<div class='step'><span class='n'>1</span><span>Deploy on Vercel and set a provider key (e.g. <code>OPENROUTER_API_KEY</code>) — then everyone can chat with no setup.</span></div>" +
-      "<div class='step'><span class='n'>2</span><span>Or add your own free key now in <b>⚙ Settings</b> (OpenRouter is the easiest).</span></div>" });
+      "<p class='sub'>" + (needWebgpu
+        ? "That's a <b>local</b> model, but this browser has <b>no WebGPU</b>. Use Chrome/Edge desktop, or pick a cloud model below."
+        : "No AI engine is set up for this model yet. Pick any of these:") + "</p>" +
+      (gpu ? "<div class='step'><span class='n'>🖥</span><span><b>Run it locally, free</b> — in <b>⚙ Settings → On-device</b>, install a model (e.g. <i>Qwen2.5 Coder 1.5B</i>). No key, works offline.</span></div>" : "") +
+      "<div class='step'><span class='n'>🔑</span><span><b>Use a cloud model</b> — add your own free key in <b>⚙ Settings</b> (AgentRouter or OpenRouter).</span></div>" +
+      "<div class='step'><span class='n'>☁</span><span>Or deploy on Vercel with a provider key (e.g. <code>OPENROUTER_API_KEY</code>) so everyone can chat with no setup.</span></div>" });
     IDE.modal({ title: "🤖 Set up the AI", body, footer: [IDE.btn("Open Settings", "primary", () => { IDE.$(".overlay:last-child .x").click(); ai.openSettings(); })] });
   }
   ai.openNoEngine = openNoEngine;
