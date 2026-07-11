@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AL.AI IDE — Serverless AI Web IDE</title>
+<meta name="description" content="A serverless, browser-based AI web IDE. Build projects locally, edit with Monaco, chat with the best free coding LLMs, and push straight to GitHub." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%233b82f6'/%3E%3Ctext x='50' y='68' font-size='54' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3E&lt;/&gt;%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="assets/css/app.css" />
+</head>
+<body>
+  <!-- ============================ Top bar ============================ -->
+  <header id="topbar">
+    <div class="brand">
+      <span class="logo">&lt;/&gt;</span>
+      <span class="brand-name">AL.AI <b>IDE</b></span>
+    </div>
+    <button class="tb-btn" id="btnProject" title="Project name — click to rename"><span id="projName">untitled-project</span></button>
+    <div class="tb-spacer"></div>
+    <button class="tb-btn" id="btnRun" title="Run / live preview">▶ <span>Run</span></button>
+    <button class="tb-btn" id="btnOpenFolder" title="Open a local folder (File System Access API)">📁 <span>Open</span></button>
+    <button class="tb-btn" id="btnSaveFolder" title="Save project back to the opened local folder">💾 <span>Save</span></button>
+    <button class="tb-btn" id="btnZip" title="Download the whole project as a .zip">⬇ <span>ZIP</span></button>
+    <button class="tb-btn accent" id="btnGithub" title="Connect GitHub & push">⑂ <span>GitHub</span></button>
+    <button class="tb-btn" id="btnTheme" title="Toggle light / dark">◐</button>
+    <button class="tb-btn" id="btnSettings" title="AI provider settings">⚙</button>
+  </header>
+
+  <!-- ============================ Body ============================ -->
+  <div id="workbench">
+    <!-- Activity bar -->
+    <nav id="activitybar">
+      <button class="act active" data-panel="explorer" title="Explorer">🗂</button>
+      <button class="act" data-panel="skills" title="Skills & templates">🧩</button>
+      <button class="act" data-panel="github" title="Source control (GitHub)">⑂</button>
+      <div class="act-spacer"></div>
+      <button class="act" data-panel="settings" id="actSettings" title="Settings">⚙</button>
+    </nav>
+
+    <!-- Left side panel (switchable) -->
+    <aside id="sidepanel">
+      <!-- Explorer -->
+      <section class="panel" data-panel="explorer">
+        <div class="panel-head">
+          <span>Explorer</span>
+          <div class="panel-actions">
+            <button id="newFile" title="New file">🗎</button>
+            <button id="newFolder" title="New folder">🗀</button>
+            <button id="refreshTree" title="Refresh">⟳</button>
+          </div>
+        </div>
+        <div id="tree" class="tree"></div>
+      </section>
+
+      <!-- Skills -->
+      <section class="panel hidden" data-panel="skills">
+        <div class="panel-head"><span>Skills &amp; Templates</span></div>
+        <div id="skillsPanel" class="scroll"></div>
+      </section>
+
+      <!-- GitHub -->
+      <section class="panel hidden" data-panel="github">
+        <div class="panel-head"><span>Source Control</span></div>
+        <div id="githubPanel" class="scroll"></div>
+      </section>
+    </aside>
+
+    <div class="splitter" id="split1"></div>
+
+    <!-- Center: editor + preview -->
+    <main id="center">
+      <div id="tabbar" class="tabbar"></div>
+      <div id="editorArea">
+        <div id="editor"></div>
+        <div id="previewPane" class="hidden">
+          <div class="preview-head">
+            <span>Live Preview</span>
+            <input id="previewEntry" title="Entry file to preview" value="index.html" spellcheck="false" />
+            <button id="previewReload" title="Reload">⟳</button>
+            <button id="previewClose" title="Close preview">✕</button>
+          </div>
+          <iframe id="previewFrame" sandbox="allow-scripts allow-modals allow-forms allow-popups allow-same-origin"></iframe>
+        </div>
+        <div id="editorEmpty" class="editor-empty">
+          <div>
+            <div class="ee-logo">&lt;/&gt;</div>
+            <h2>AL.AI IDE</h2>
+            <p>Open a file from the Explorer, or start from a template in <b>🧩 Skills</b>.</p>
+            <p class="muted">Everything runs in your browser. Nothing is uploaded until you push to GitHub.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div class="splitter" id="split2"></div>
+
+    <!-- Right: AI chat -->
+    <aside id="chat">
+      <div class="chat-head">
+        <div class="chat-title">🤖 AI Assistant</div>
+        <select id="modelSelect" title="Model — coding models are recommended"></select>
+        <button id="chatContextBtn" class="ghost" title="What the AI can see">👁</button>
+        <button id="chatClear" class="ghost" title="Clear conversation">🗑</button>
+      </div>
+      <div id="chatMessages" class="chat-messages"></div>
+      <div id="chatStatus" class="chat-status"></div>
+      <div class="composer">
+        <label class="ctx-toggle" title="Include the current file / project in the prompt">
+          <input type="checkbox" id="ctxInclude" checked /> context
+        </label>
+        <textarea id="chatInput" rows="1" placeholder="Ask for code, a fix, or an explanation…  (Shift+Enter = newline)"></textarea>
+        <button id="chatSend" title="Send">➤</button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ============================ Modals ============================ -->
+  <div id="modalRoot"></div>
+
+  <!-- Monaco loader (CDN, AMD) -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+  <!-- JSZip for project download -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <!-- App modules (classic scripts, ordered) -->
+  <script src="assets/js/util.js"></script>
+  <script src="assets/js/vfs.js"></script>
+  <script src="assets/js/skills.js"></script>
+  <script src="assets/js/editor.js"></script>
+  <script src="assets/js/explorer.js"></script>
+  <script src="assets/js/preview.js"></script>
+  <script src="assets/js/ai.js"></script>
+  <script src="assets/js/github.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
