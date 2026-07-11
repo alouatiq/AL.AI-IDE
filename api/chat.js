@@ -6,10 +6,11 @@ export const config = { runtime: "edge" };
 
 // provider id -> upstream URL + the env var(s) that hold its key (first one set wins)
 const MAP = {
-  openrouter: { url: "https://openrouter.ai/api/v1/chat/completions", env: ["OPENROUTER_API_KEY"] },
-  groq:       { url: "https://api.groq.com/openai/v1/chat/completions", env: ["GROQ_API_KEY"] },
-  google:     { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", env: ["GEMINI_API_KEY", "GOOGLE_API_KEY"] },
-  cerebras:   { url: "https://api.cerebras.ai/v1/chat/completions", env: ["CEREBRAS_API_KEY"] },
+  openrouter:  { url: "https://openrouter.ai/api/v1/chat/completions", env: ["OPENROUTER_API_KEY"] },
+  agentrouter: { url: "https://agentrouter.org/v1/chat/completions", env: ["AGENTROUTER_API_KEY"] },
+  groq:        { url: "https://api.groq.com/openai/v1/chat/completions", env: ["GROQ_API_KEY"] },
+  google:      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", env: ["GEMINI_API_KEY", "GOOGLE_API_KEY"] },
+  cerebras:    { url: "https://api.cerebras.ai/v1/chat/completions", env: ["CEREBRAS_API_KEY"] },
 };
 
 export default async function handler(req) {
