@@ -16,7 +16,7 @@ jobs:
     name: Deploy gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Confirm CI passed
         run: echo "CI runs on this push via ci.yml; Vercel deploys the static app + api/ Edge functions on merge to main."
       # To deploy from CI instead of Vercel's Git integration, set VERCEL_TOKEN,
