@@ -86,7 +86,9 @@
   /* ---------- on-device engine (WebLLM / WebGPU) ---------- */
   const od = { webllm: null, engine: null, model: null, installed: new Set(IDE.store.get("ide_od_installed", [])) };
   function webgpuOK() { return typeof navigator !== "undefined" && !!navigator.gpu; }
-  async function loadWebLLM() { if (!od.webllm) od.webllm = await import("https://esm.run/@mlc-ai/web-llm"); return od.webllm; }
+  // Import straight from jsDelivr (already trusted by our CSP for Monaco) rather
+  // than esm.run, whose 302 redirect trips the Content-Security-Policy.
+  async function loadWebLLM() { if (!od.webllm) od.webllm = await import("https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.84/+esm"); return od.webllm; }
   ai.odIsInstalled = (model) => od.installed.has(model);
   ai.odWebgpuOK = webgpuOK;
   ai.ON_DEVICE = ON_DEVICE;
