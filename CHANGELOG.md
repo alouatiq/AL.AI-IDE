@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Full-stack templates**: **FastAPI + React** and **Django + React**, each with a Vite dev-proxy so the
+  frontend and backend run same-origin locally with no CORS setup.
+- New project skills: **CONTRIBUTING guide**, **Code of Conduct**, and **Security Policy** generators.
+
+### Changed
+- **CI** now runs as a sequential pipeline (`lint-frontend` → `test-quality` → `security-scan`) via `needs:`.
+- Rewrote the README with a professional structure and a "What you can build" matrix clarifying that the IDE
+  app is frontend-only while the scaffolder produces both frontend and backend projects.
+
 ## [0.1.0] - 2026-07-11
 
 ### Added
