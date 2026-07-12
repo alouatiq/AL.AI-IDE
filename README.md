@@ -6,7 +6,12 @@
 Build a project locally, edit it in a real Monaco editor, pair with an AI assistant that reads and
 writes your files, preview it live, and export it as a ZIP or push it straight to GitHub.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <a href="https://ai.alouatiq.com"><img alt="Live demo" src="https://img.shields.io/badge/Live%20demo-ai.alouatiq.com-3b82f6?style=for-the-badge"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge"></a>
+  <a href="CONTRIBUTING.md"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=for-the-badge"></a>
+  <img alt="No backend" src="https://img.shields.io/badge/Backend-none-8b5cf6?style=for-the-badge">
+</p>
 
 [Overview](#overview) · [Features](#features) · [What you can build](#what-you-can-build) · [Quick start](#quick-start) · [Deployment](#deployment) · [Architecture](#architecture) · [Contributing](#contributing)
 
