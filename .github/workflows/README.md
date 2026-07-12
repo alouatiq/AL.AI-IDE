@@ -10,4 +10,4 @@ GitHub Actions pipelines. Actions are pinned to major versions; jobs run least-p
 
 Make the CI jobs **required status checks** in repo Settings so PRs can't merge red.
 
-↑ Back to [`.github/`](../README.md) · [project root](../../README.md).
+↑ Back to the [project root](../../README.md).
