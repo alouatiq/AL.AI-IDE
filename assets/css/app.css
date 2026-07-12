@@ -48,6 +48,8 @@ button { font-family: inherit; }
 .tb-btn:hover { background: var(--bg4); border-color: var(--accent); }
 .tb-btn.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
 .tb-btn.accent:hover { background: var(--accent2); }
+.gh-ico { width: 1.15em; height: 1.15em; fill: currentColor; display: inline-block; vertical-align: -0.15em; flex: none; }
+.act .gh-ico { width: 1em; height: 1em; }
 #btnProject { font-weight: 600; }
 @media (max-width: 900px) { .tb-btn span { display: none; } }
 
@@ -196,13 +198,15 @@ label.field span { display: block; color: var(--muted); margin-bottom: 4px; }
 .tpl-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; background: var(--bg); }
 .tpl-card:hover { border-color: var(--accent); }
 .tpl-card.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.tpl-head { display: flex; align-items: center; justify-content: space-between; }
-.tpl-card .tpl-ico { font-size: 22px; line-height: 0; }
-.tpl-card .tpl-ico svg { width: 26px; height: 26px; display: block; }
+.tpl-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tpl-card .tpl-ico { font-size: 22px; line-height: 0; display: flex; align-items: center; gap: 6px; }
+.tpl-card .tpl-ico svg { width: 26px; height: 26px; display: block; flex: none; }
 .tpl-tag { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
-  padding: 2px 7px; border-radius: 999px; border: 1px solid transparent; }
+  padding: 2px 7px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; }
 .tpl-tag.frontend { color: #3b82f6; background: rgba(59, 130, 246, .12); border-color: rgba(59, 130, 246, .3); }
 .tpl-tag.backend { color: #10b981; background: rgba(16, 185, 129, .12); border-color: rgba(16, 185, 129, .3); }
+.tpl-tag.fullstack { color: #8b5cf6; background: rgba(139, 92, 246, .12); border-color: rgba(139, 92, 246, .3); }
+.tpl-tag.starter { color: #94a3b8; background: rgba(148, 163, 184, .12); border-color: rgba(148, 163, 184, .3); }
 .tpl-card .tpl-name { font-weight: 600; margin: 4px 0 2px; }
 .tpl-card .tpl-desc { color: var(--muted); font-size: 12px; line-height: 1.5; }
 .skill-row { display: flex; align-items: flex-start; gap: 9px; padding: 8px 4px; border-bottom: 1px solid var(--border); }

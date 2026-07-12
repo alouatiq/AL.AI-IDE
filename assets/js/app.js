@@ -64,11 +64,12 @@
     const grid = IDE.el("div", { class: "tpl-grid" });
     Object.keys(tpls).forEach((key) => {
       const t = tpls[key];
-      const ico = t.logo
-        ? IDE.el("div", { class: "tpl-ico", html: t.logo })
+      const ico = t.logos && t.logos.length
+        ? IDE.el("div", { class: "tpl-ico", html: t.logos.join("") })
         : IDE.el("div", { class: "tpl-ico", text: t.icon });
       const head = IDE.el("div", { class: "tpl-head" }, [ico]);
-      if (t.side) head.appendChild(IDE.el("span", { class: "tpl-tag " + t.side, text: t.side }));
+      const tagLabel = { frontend: "frontend", backend: "backend", fullstack: "full-stack", starter: "starter" };
+      if (t.side) head.appendChild(IDE.el("span", { class: "tpl-tag " + t.side, text: tagLabel[t.side] || t.side }));
       const card = IDE.el("div", { class: "tpl-card" + (key === chosenTpl ? " sel" : "") }, [
         head,
         IDE.el("div", { class: "tpl-name", text: t.name }),
